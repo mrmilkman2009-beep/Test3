@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style>
+<title>Gym Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column. Today's session on top, month grid of black tiles that flip red when trained, weekly split editor at the bottom. */
+:root {
+  --bg: #e3e5e9;
+  --surface: #f4f5f7;
+  --fg: #16171a;
+  --muted: #5d6068;
+  --line: #c9ccd2;
+  --red: #e0261b;
+  --red-fg: #ffffff;
+  --off: #0c0c0e;
+  --off-fg: #f1f1f3;
+  --off-dim: #7b7e86;
+  --font-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #25272c;
+    --surface: #1d1f23;
+    --fg: #eceef2;
+    --muted: #9ea2ab;
+    --line: #3a3d44;
+    --red: #ff3b2f;
+    --red-fg: #ffffff;
+    --off: #08080a;
+    --off-fg: #eceef2;
+    --off-dim: #70737b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #25272c;
+  --surface: #1d1f23;
+  --fg: #eceef2;
+  --muted: #9ea2ab;
+  --line: #3a3d44;
+  --red: #ff3b2f;
+  --red-fg: #ffffff;
+  --off: #08080a;
+  --off-fg: #eceef2;
+  --off-dim: #70737b;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+button, input { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+h1 {
+  font-family: var(--font-display); font-weight: 900; font-size: 1.1rem;
+  letter-spacing: 0.18em; text-transform: uppercase; margin: 0; text-wrap: balance;
+}
+#sync { font-size: 0.8rem; color: var(--muted); min-width: 0; text-align: right; }
+
+/* Today */
+.today {
+  background: var(--off); color: var(--off-fg);
+  border-radius: 6px; padding: 20px;
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px 18px; align-items: start;
+}
+.today-main { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.today-side { min-width: 0; padding-left: 16px; border-left: 1px solid rgba(255, 255, 255, 0.22); display: grid; gap: 8px; align-content: start; }
+.side-label { margin: 0; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; color: var(--off-dim); }
+.today.done .side-label { color: rgba(255, 255, 255, 0.8); }
+#machines { list-style: none; margin: 0; padding: 0; display: grid; }
+#machines li { padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.14); font-size: 0.95rem; line-height: 1.25; overflow-wrap: anywhere; }
+#machines li:last-child { border-bottom: 0; }
+#machines li.empty { color: var(--off-dim); border-bottom: 0; }
+.today.done #machines li.empty { color: rgba(255, 255, 255, 0.8); }
+.today .date { font-size: 0.85rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--off-dim); font-weight: 600; }
+.today .session {
+  font-family: var(--font-display); font-weight: 900; text-transform: uppercase;
+  font-size: clamp(2.6rem, 12vw, 5rem); line-height: 0.9; letter-spacing: 0.01em; margin: 0;
+  overflow-wrap: anywhere;
+}
+.today .session.long { font-size: clamp(1.8rem, 8vw, 3.6rem); }
+.today.done { background: var(--red); color: var(--red-fg); }
+.today.done .date { color: rgba(255,255,255,0.8); }
+.log-btn {
+  justify-self: start; cursor: pointer; font-weight: 600; letter-spacing: 0.04em;
+  padding: 12px 20px; border-radius: 4px; border: 2px solid var(--off-fg);
+  background: transparent; color: var(--off-fg);
+}
+.log-btn:hover { background: var(--off-fg); color: var(--off); }
+.today.done .log-btn { border-color: var(--red-fg); color: var(--red-fg); }
+.today.done .log-btn:hover { background: var(--red-fg); color: var(--red); }
+
+/* Month */
+.month-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.month-title { font-family: var(--font-display); font-weight: 800; font-size: 1.9rem; text-transform: uppercase; letter-spacing: 0.04em; margin: 0; line-height: 1; }
+.nav { display: flex; gap: 8px; }
+.nav button {
+  width: 44px; height: 44px; border-radius: 4px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); font-size: 1.2rem; line-height: 1;
+}
+.nav button:hover { border-color: var(--fg); }
+.count { color: var(--muted); font-size: 0.95rem; margin: 0; font-variant-numeric: tabular-nums; }
+.count strong { color: var(--fg); font-weight: 600; }
+
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.dow {
+  font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+  font-weight: 600; text-align: center; padding-bottom: 4px;
+}
+.cell {
+  aspect-ratio: 1 / 1.08; min-width: 0; padding: 6px 4px 5px;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  background: var(--off); color: var(--off-fg);
+  border: 0; border-radius: 3px; cursor: pointer; text-align: center;
+}
+.cell .n { font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.cell .s { font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; color: var(--off-dim); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell.rest .s { opacity: 0.7; }
+.cell.on { background: var(--red); color: var(--red-fg); }
+.cell.on .s { color: rgba(255,255,255,0.85); }
+.cell.today { outline: 2px solid var(--fg); outline-offset: 2px; }
+.cell.future { cursor: default; opacity: 0.55; }
+.cell.blank { visibility: hidden; }
+.cell:not(.future):not(.blank):hover { filter: brightness(1.25); }
+@media (min-width: 480px) {
+  .cell .n { font-size: 1.6rem; }
+  .cell .s { font-size: 0.7rem; }
+  .cell { padding: 8px 6px 7px; }
+}
+
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { width: 14px; height: 14px; border-radius: 2px; background: var(--off); display: inline-block; }
+.legend i.r { background: var(--red); }
+
+/* Year */
+.year { display: flex; flex-direction: column; gap: 12px; }
+.year-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.year-head > div { min-width: 0; }
+.pct { font-family: var(--font-display); font-weight: 900; font-size: clamp(3.2rem, 15vw, 5rem); line-height: 0.85; margin: 0; font-variant-numeric: tabular-nums; color: var(--red); }
+.year-sub { margin: 4px 0 0; color: var(--muted); font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.year-grid { display: grid; grid-template-columns: 2.2rem repeat(31, minmax(0, 1fr)); gap: 2px; align-items: center; }
+.ym { font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.ym.cur { color: var(--fg); }
+.yd { display: block; width: 100%; min-width: 0; aspect-ratio: 1; padding: 0; border: 0; border-radius: 1px; background: var(--off); cursor: pointer; }
+.yd.on { background: var(--red); }
+.yd.future { opacity: 0.4; }
+.yd.today { outline: 2px solid var(--fg); outline-offset: 1px; }
+.yd.none { visibility: hidden; pointer-events: none; }
+.yd:hover { filter: brightness(1.4); }
+.year-note { margin: 0; font-size: 0.8rem; color: var(--muted); }
+.sub { margin: 0; padding: 0 16px 4px; font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.split textarea { resize: vertical; line-height: 1.4; }
+
+/* Split editor */
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+summary { cursor: pointer; padding: 14px 16px; font-weight: 600; letter-spacing: 0.04em; }
+.split { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; padding: 4px 16px 16px; }
+.split label { display: grid; gap: 4px; min-width: 0; font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.split input, .split textarea {
+  width: 100%; min-width: 0; padding: 10px 12px; border-radius: 4px;
+  background: var(--bg); border: 1px solid var(--line); font-size: 1rem; letter-spacing: 0; text-transform: none; color: var(--fg);
+}
+.hint { padding: 0 16px 16px; margin: 0; color: var(--muted); font-size: 0.85rem; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <h1>Gym Log</h1>
+    <div id="sync" role="status"></div>
+  </div>
+
+  <section class="today" id="today" aria-label="Today">
+    <div class="today-main">
+      <div class="date" id="today-date"></div>
+      <p class="session" id="today-session"></p>
+      <button class="log-btn" id="today-btn" type="button"></button>
+    </div>
+    <aside class="today-side" aria-label="Exercises for today">
+      <h3 class="side-label">Exercises</h3>
+      <ul id="machines"></ul>
+    </aside>
+  </section>
+
+  <section aria-label="Calendar" style="display:flex;flex-direction:column;gap:12px">
+    <div class="month-head" id="month-head">
+      <h2 class="month-title" id="month-title"></h2>
+      <div class="nav">
+        <button id="prev" type="button" aria-label="Previous month">&larr;</button>
+        <button id="next" type="button" aria-label="Next month">&rarr;</button>
+      </div>
+    </div>
+    <p class="count" id="count"></p>
+    <div class="grid" id="dow"></div>
+    <div class="grid" id="grid"></div>
+    <div class="legend">
+      <span><i class="r"></i>Went to the gym</span>
+      <span><i></i>Didn't go</span>
+    </div>
+  </section>
+
+  <section class="year" aria-label="Year overview">
+    <div class="year-head">
+      <div>
+        <h2 class="month-title" id="year-title"></h2>
+        <p class="year-sub" id="year-sub"></p>
+      </div>
+      <p class="pct" id="pct" aria-label="Share of days at the gym"></p>
+    </div>
+    <div class="year-grid" id="year-grid"></div>
+    <p class="year-note">One box per day. Tap a box to open that month.</p>
+  </section>
+
+  <details id="split-box">
+    <summary>Weekly split and exercises</summary>
+    <div class="split" id="split"></div>
+    <p class="hint">Type a session name for each weekday. Leave a day blank or write Rest for a rest day.</p>
+    <p class="sub">Exercises for each session</p>
+    <div class="split" id="machines-edit"></div>
+    <p class="hint">One exercise per line. The list shows next to the date on that session's days.</p>
+  </details>
+</main>
+
+<script>
+(function () {
+  var DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  var FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var state = { days: {}, machines: {}, split: ["Push", "Pull", "Legs", "Push", "Pull", "Legs", "Rest"] };
+  var machSig = "";
+  var now = new Date();
+  var viewY = now.getFullYear(), viewM = now.getMonth();
+  var ref = null, saveTimer = null, saving = false, again = false, loaded = false;
+
+  function $(id) { return document.getElementById(id); }
+  function key(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function wk(d) { return (d.getDay() + 6) % 7; }
+  function label(i) { var v = (state.split[i] || "").trim(); return v || "Rest"; }
+  function isRest(i) { return label(i).toLowerCase() === "rest"; }
+  function setSync(t) { $("sync").textContent = t; }
+
+  // Local copy so the page still shows data if the shared store is unavailable.
+  function readLocal() {
+    try {
+      var raw = localStorage.getItem("gym-log-v1");
+      if (raw) merge(JSON.parse(raw));
+    } catch (e) {}
+  }
+  function writeLocal() { try { localStorage.setItem("gym-log-v1", JSON.stringify(state)); } catch (e) {} }
+  function merge(o) {
+    if (!o || typeof o !== "object") return;
+    if (o.days && typeof o.days === "object") {
+      // Copy: snapshots from the store are frozen, and the page edits its own days object.
+      var copy = {};
+      Object.keys(o.days).forEach(function (k) { if (o.days[k]) copy[k] = true; });
+      state.days = copy;
+    }
+    if (Array.isArray(o.split) && o.split.length === 7) state.split = o.split.map(String);
+    if (o.machines && typeof o.machines === "object") {
+      var mc = {};
+      Object.keys(o.machines).forEach(function (k) { if (typeof o.machines[k] === "string") mc[k] = o.machines[k]; });
+      state.machines = mc;
+    }
+  }
+
+  function render() {
+    var t = new Date();
+    var tk = key(t), ti = wk(t);
+    $("today-date").textContent = FULL[ti] + " " + t.getDate() + " " + MONTHS[t.getMonth()];
+    $("today-session").textContent = label(ti);
+    $("today-session").classList.toggle("long", label(ti).length > 7);
+    renderMachines(ti);
+    var done = !!state.days[tk];
+    $("today").classList.toggle("done", done);
+    $("today-btn").textContent = done ? "Done. Tap to undo" : (isRest(ti) ? "I trained anyway" : "I went today");
+
+    $("month-title").textContent = MONTHS[viewM] + " " + viewY;
+
+    var first = new Date(viewY, viewM, 1);
+    var total = new Date(viewY, viewM + 1, 0).getDate();
+    var lead = wk(first);
+    var grid = $("grid");
+    grid.textContent = "";
+    var went = 0, planned = 0;
+    for (var b = 0; b < lead; b++) {
+      var bl = document.createElement("div");
+      bl.className = "cell blank";
+      grid.appendChild(bl);
+    }
+    var todayMid = new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
+    for (var d = 1; d <= total; d++) {
+      var date = new Date(viewY, viewM, d);
+      var k = key(date), i = wk(date);
+      var future = date.getTime() > todayMid;
+      var on = !!state.days[k];
+      if (on) went++;
+      if (!future && !isRest(i)) planned++;
+      var c = document.createElement("button");
+      c.type = "button";
+      c.className = "cell" + (on ? " on" : "") + (future ? " future" : "") + (isRest(i) ? " rest" : "") + (k === tk ? " today" : "");
+      c.setAttribute("data-key", k);
+      c.setAttribute("aria-pressed", on ? "true" : "false");
+      c.setAttribute("aria-label", FULL[i] + " " + d + " " + MONTHS[viewM] + ", " + label(i) + (on ? ", went" : ", did not go"));
+      if (future) c.disabled = true;
+      var n = document.createElement("span"); n.className = "n"; n.textContent = d;
+      var s = document.createElement("span"); s.className = "s"; s.textContent = label(i);
+      c.appendChild(n); c.appendChild(s);
+      grid.appendChild(c);
+    }
+    var cnt = $("count");
+    cnt.textContent = "";
+    var st = document.createElement("strong"); st.textContent = went;
+    cnt.appendChild(st);
+    cnt.appendChild(document.createTextNode(went === 1 ? " session this month" : " sessions this month"));
+    if (planned > 0) cnt.appendChild(document.createTextNode(" (" + planned + " scheduled so far)"));
+    renderYear(t);
+  }
+
+  function renderMachines(ti) {
+    var ul = $("machines");
+    ul.textContent = "";
+    function add(text, cls) {
+      var li = document.createElement("li");
+      if (cls) li.className = cls;
+      li.textContent = text;
+      ul.appendChild(li);
+    }
+    if (isRest(ti)) { add("Rest day. Nothing planned.", "empty"); return; }
+    var lines = (state.machines[label(ti).toLowerCase()] || "").split("\n")
+      .map(function (s) { return s.trim(); }).filter(Boolean);
+    if (!lines.length) { add("No exercises yet. Add them under Weekly split and exercises.", "empty"); return; }
+    lines.forEach(function (s) { add(s); });
+  }
+
+  function renderYear(t) {
+    var y = viewY, grid = $("year-grid");
+    grid.textContent = "";
+    var todayMid = new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
+    var tk = key(t);
+    var went = 0, elapsed = 0, total = 0;
+    for (var m = 0; m < 12; m++) {
+      var ml = document.createElement("div");
+      ml.className = "ym" + (m === viewM ? " cur" : "");
+      ml.textContent = MONTHS[m].slice(0, 3);
+      grid.appendChild(ml);
+      var dim = new Date(y, m + 1, 0).getDate();
+      for (var d = 1; d <= 31; d++) {
+        if (d > dim) {
+          var gap = document.createElement("div");
+          gap.className = "yd none";
+          gap.setAttribute("aria-hidden", "true");
+          grid.appendChild(gap);
+          continue;
+        }
+        var date = new Date(y, m, d), k = key(date);
+        var future = date.getTime() > todayMid, on = !!state.days[k];
+        total++;
+        if (!future) { elapsed++; if (on) went++; }
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "yd" + (on ? " on" : "") + (future ? " future" : "") + (k === tk ? " today" : "");
+        b.setAttribute("data-m", m);
+        b.setAttribute("aria-label", d + " " + MONTHS[m] + (on ? ", went" : (future ? ", upcoming" : ", did not go")));
+        grid.appendChild(b);
+      }
+    }
+    var pct = elapsed ? Math.round(went / elapsed * 100) : 0;
+    var left = total - elapsed;
+    $("year-title").textContent = y;
+    $("pct").textContent = pct + "%";
+    $("year-sub").textContent = went + " of " + elapsed + " days" + (left ? ", " + left + " to go" : "");
+  }
+
+  function sessionNames() {
+    var seen = {}, out = [];
+    state.split.forEach(function (v) {
+      var name = (v || "").trim(), k = name.toLowerCase();
+      if (!name || k === "rest" || seen[k]) return;
+      seen[k] = true;
+      out.push(name);
+    });
+    return out;
+  }
+
+  function renderMachineEditors() {
+    var box = $("machines-edit");
+    var names = sessionNames();
+    var sig = names.join("|");
+    var focused = document.activeElement && box.contains(document.activeElement);
+    if (sig !== machSig && !focused) {
+      box.textContent = "";
+      names.forEach(function (name, i) {
+        var k = name.toLowerCase();
+        var lab = document.createElement("label");
+        lab.textContent = name + " day";
+        var ta = document.createElement("textarea");
+        ta.id = "mach-" + i;
+        ta.rows = 6;
+        ta.maxLength = 600;
+        ta.placeholder = "One exercise per line";
+        ta.value = state.machines[k] || "";
+        ta.addEventListener("input", function () {
+          state.machines[k] = ta.value;
+          render(); queueSave();
+        });
+        lab.appendChild(ta);
+        box.appendChild(lab);
+      });
+      machSig = sig;
+    } else if (sig === machSig) {
+      names.forEach(function (name, i) {
+        var ta = $("mach-" + i);
+        if (ta && document.activeElement !== ta) ta.value = state.machines[name.toLowerCase()] || "";
+      });
+    }
+  }
+
+  function renderSplitInputs() {
+    var box = $("split");
+    for (var i = 0; i < 7; i++) {
+      var el = $("split-" + i);
+      if (!el) {
+        var lab = document.createElement("label");
+        lab.textContent = FULL[i];
+        el = document.createElement("input");
+        el.type = "text"; el.id = "split-" + i; el.maxLength = 14;
+        el.setAttribute("autocomplete", "off");
+        (function (idx) {
+          el.addEventListener("input", function (ev) {
+            state.split[idx] = ev.target.value;
+            render(); renderMachineEditors(); queueSave();
+          });
+        })(i);
+        lab.appendChild(el);
+        box.appendChild(lab);
+      }
+      if (document.activeElement !== el) el.value = state.split[i];
+    }
+  }
+
+  function toggle(k) {
+    if (state.days[k]) delete state.days[k]; else state.days[k] = true;
+    render(); queueSave();
+  }
+
+  function queueSave() {
+    writeLocal();
+    if (!ref) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flush, 300);
+  }
+  function flush() {
+    saveTimer = null;
+    if (saving) { again = true; return; }
+    saving = true;
+    setSync("Saving");
+    ref.set({ days: state.days, split: state.split, machines: state.machines }).then(function () {
+      saving = false;
+      setSync("Saved");
+      if (again) { again = false; flush(); }
+    }, function () {
+      saving = false;
+      setSync("Saved on this device only");
+    });
+  }
+
+  // Events
+  $("today-btn").addEventListener("click", function () { toggle(key(new Date())); });
+  $("grid").addEventListener("click", function (ev) {
+    var c = ev.target.closest(".cell");
+    if (c && !c.disabled && c.getAttribute("data-key")) toggle(c.getAttribute("data-key"));
+  });
+  $("prev").addEventListener("click", function () { viewM--; if (viewM < 0) { viewM = 11; viewY--; } render(); });
+  $("next").addEventListener("click", function () { viewM++; if (viewM > 11) { viewM = 0; viewY++; } render(); });
+
+  $("year-grid").addEventListener("click", function (ev) {
+    var c = ev.target.closest(".yd");
+    if (!c || c.classList.contains("none")) return;
+    viewM = parseInt(c.getAttribute("data-m"), 10);
+    render();
+    try { $("month-head").scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) {}
+  });
+
+  var dow = $("dow");
+  DAYS.forEach(function (d) { var e = document.createElement("div"); e.className = "dow"; e.textContent = d; dow.appendChild(e); });
+
+  readLocal();
+  if (!(window.claude && window.claude.use)) setSync("Saved on this device");
+  renderSplitInputs();
+  renderMachineEditors();
+  render();
+
+  // Shared store, so the log follows you across devices and republishes.
+  try {
+    if (window.claude && window.claude.use) {
+      window.claude.use("db").then(function (db) {
+        if (!db) { setSync("Saved on this device only"); return; }
+        ref = db.doc("gym/log");
+        ref.onSnapshot(function (snap) {
+          if (snap.metadata.hasPendingWrites || saveTimer || saving) return;
+          if (snap.exists) {
+            merge(snap.data());
+            writeLocal();
+            renderSplitInputs();
+            renderMachineEditors();
+            render();
+          }
+          if (!loaded) { loaded = true; setSync("Synced"); }
+        }, function () { ref = null; setSync("Saved on this device only"); });
+      }, function () { setSync("Saved on this device only"); });
+    }
+  } catch (e) { setSync("Saved on this device only"); }
+})();
+</script>
+</body>
+</html>
